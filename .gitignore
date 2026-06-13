@@ -1,0 +1,67 @@
+### macOS ###
+.DS_Store
+._*
+
+### Node ###
+npm-debug.log*
+build/
+coverage/
+*.lcov
+.nyc_output/
+
+### VisualStudioCode ###
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+
+### Other IDEs ###
+.idea/
+*.iml
+
+### Custom ###
+/ormconfig.json
+ormlogs.log
+
+/test/github-issues/799/tmp/*
+
+# Dependencies
+node_modules/
+
+# Compiled output
+build/
+
+# Environment variables
+.env
+.env.local
+.env.development
+.env.production
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Runtime
+pids/
+*.pid
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# Coverage
+coverage/

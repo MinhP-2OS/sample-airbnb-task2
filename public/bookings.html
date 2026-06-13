@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Book a Property - AirBnB</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link href="style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-danger">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="index.html">
+          <i class="bi bi-house-heart-fill me-2"></i>AirBnB
+        </a>
+        <div class="ms-auto">
+          <a href="index.html" class="btn btn-outline-light btn-sm">
+            <i class="bi bi-arrow-left me-1"></i>Back to Search
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="container py-5">
+      <div id="loadingDetail" class="text-center py-5">
+        <div class="spinner-border text-danger" role="status"></div>
+        <p class="mt-2 text-muted">Loading property details...</p>
+      </div>
+
+      <div id="errorDetail" class="d-none">
+        <div class="alert alert-danger">
+          <i class="bi bi-exclamation-circle me-2"></i>
+          <span id="errorMsg">Property not found.</span>
+        </div>
+        <a href="index.html" class="btn btn-danger">Return to Search</a>
+      </div>
+
+      <div id="bookingContent" class="d-none">
+        <div class="row g-4">
+          <!-- Left: Property Details -->
+          <div class="col-lg-6">
+            <div id="propertyImage" class="mb-4 d-none">
+              <img
+                id="propImg"
+                src=""
+                alt=""
+                class="img-fluid rounded-3 w-100 property-hero-img"
+              />
+            </div>
+            <h2 id="propName" class="fw-bold"></h2>
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <span
+                class="badge bg-light text-dark border"
+                id="propType"
+              ></span>
+              <span
+                class="badge bg-light text-dark border"
+                id="propBedrooms"
+              ></span>
+              <span
+                class="badge bg-light text-dark border"
+                id="propBathrooms"
+              ></span>
+              <span
+                class="badge bg-light text-dark border"
+                id="propAccommodates"
+              ></span>
+              <span
+                class="badge bg-light text-dark border"
+                id="propLocation"
+              ></span>
+            </div>
+            <div class="d-flex align-items-center gap-3 mb-4">
+              <div>
+                <i class="bi bi-star-fill text-warning"></i>
+                <strong id="propRating" class="ms-1"></strong>
+                <small class="text-muted ms-1">/ 100</small>
+              </div>
+              <div class="fs-4 fw-bold text-danger">
+                $<span id="propPrice"></span>
+                <small class="fs-6 text-muted fw-normal">/night</small>
+              </div>
+            </div>
+
+            <h5 class="fw-bold mb-2">About this place</h5>
+            <p id="propSummary" class="text-muted mb-4"></p>
+
+            <div id="amenitiesSection" class="mb-4 d-none">
+              <h5 class="fw-bold mb-2">Amenities</h5>
+              <div id="amenitiesList" class="d-flex flex-wrap gap-2"></div>
+            </div>
+
+            <div class="mb-4">
+              <h5 class="fw-bold mb-2">Your Host</h5>
+              <div class="d-flex align-items-center gap-3">
+                <div id="hostImgWrapper" class="d-none">
+                  <img
+                    id="hostImg"
+                    src=""
+                    alt=""
+                    width="50"
+                    height="50"
+                    class="rounded-circle object-fit-cover"
+                  />
+                </div>
+                <div>
+                  <p class="mb-0 fw-semibold" id="hostName"></p>
+                  <small class="text-muted">Host</small>
+                </div>
+              </div>
+            </div>
+
+            <div id="existingBookingsSection" class="d-none">
+              <h5 class="fw-bold mb-3">
+                <i class="bi bi-calendar3 me-2 text-danger"></i>Existing
+                Bookings
+              </h5>
+              <div id="existingBookingsList"></div>
+            </div>
+          </div>
+
+          <!-- Right: Booking Form -->
+          <div class="col-lg-6">
+            <div class="card shadow border-0">
+              <div class="card-header bg-danger text-white py-3">
+                <h5 class="mb-0 fw-bold">
+                  <i class="bi bi-calendar-plus me-2"></i>Reserve This Property
+                </h5>
+              </div>
+              <div class="card-body p-4">
+                <form id="bookingForm" novalidate>
+                  <!-- Stay Dates -->
+                  <h6 class="fw-bold text-danger mb-3">
+                    <i class="bi bi-calendar-range me-1"></i>Stay Dates
+                  </h6>
+                  <div class="row g-2 mb-3">
+                    <div class="col-6">
+                      <label class="form-label fw-semibold"
+                        >Arrival <span class="text-danger">*</span></label
+                      >
+                      <input
+                        type="date"
+                        class="form-control"
+                        id="arrivalDate"
+                        required
+                      />
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label fw-semibold"
+                        >Departure <span class="text-danger">*</span></label
+                      >
+                      <input
+                        type="date"
+                        class="form-control"
+                        id="departureDate"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div class="row g-2 mb-4">
+                    <div class="col-6">
+                      <label class="form-label fw-semibold"
+                        >Number of Guests</label
+                      >
+                      <select class="form-select" id="numGuests">
+                        <option value="1">1</option>
+                        <option value="2">2</option>
+                        <option value="3">3</option>
+                        <option value="4">4</option>
+                        <option value="5">5+</option>
+                      </select>
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label fw-semibold"
+                        >Deposit Paid ($)</label
+                      >
+                      <input
+                        type="number"
+                        class="form-control"
+                        id="depositPaid"
+                        placeholder="0.00"
+                        min="0"
+                        step="0.01"
+                        value="0"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Price summary -->
+                  <div
+                    id="priceSummary"
+                    class="p-3 bg-light rounded mb-4 d-none"
+                  >
+                    <div class="d-flex justify-content-between small">
+                      <span
+                        >$<span id="sumPrice"></span> ×
+                        <span id="sumNights"></span> nights</span
+                      >
+                      <span>$<span id="sumTotal"></span></span>
+                    </div>
+                    <div
+                      class="d-flex justify-content-between small text-success"
+                    >
+                      <span>Deposit paid</span>
+                      <span>−$<span id="sumDeposit"></span></span>
+                    </div>
+                    <hr class="my-2" />
+                    <div class="d-flex justify-content-between fw-bold">
+                      <span>Balance due</span>
+                      <span class="text-danger"
+                        >$<span id="sumBalance"></span
+                      ></span>
+                    </div>
+                    <div class="text-muted small mt-1">
+                      Balance due date: <span id="sumBalanceDueDate"></span>
+                    </div>
+                  </div>
+
+                  <!-- Guest / Client Details -->
+                  <h6 class="fw-bold text-danger mb-3">
+                    <i class="bi bi-person-fill me-1"></i>Guest Details
+                  </h6>
+
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold"
+                      >Full Name <span class="text-danger">*</span></label
+                    >
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="clientName"
+                      required
+                      placeholder="e.g. Jane Smith"
+                    />
+                    <div class="form-text">First and last name</div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold"
+                      >Email Address <span class="text-danger">*</span></label
+                    >
+                    <input
+                      type="email"
+                      class="form-control"
+                      id="emailAddress"
+                      required
+                      placeholder="jane@example.com"
+                    />
+                    <div class="form-text">
+                      Used to look up existing client records
+                    </div>
+                  </div>
+
+                  <div class="row g-2 mb-3">
+                    <div class="col-6">
+                      <label class="form-label fw-semibold"
+                        >Daytime Phone</label
+                      >
+                      <input
+                        type="tel"
+                        class="form-control"
+                        id="daytimePhone"
+                        placeholder="(03) 5352 6218"
+                      />
+                    </div>
+                    <div class="col-6">
+                      <label class="form-label fw-semibold"
+                        >Mobile Number</label
+                      >
+                      <input
+                        type="tel"
+                        class="form-control"
+                        id="mobileNumber"
+                        placeholder="0453 526 218"
+                      />
+                    </div>
+                  </div>
+
+                  <div class="mb-3">
+                    <label class="form-label fw-semibold">Postal Address</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="postalAddress"
+                      placeholder="48 Mills Street DALYSTON VIC 3992"
+                    />
+                  </div>
+
+                  <div class="mb-4">
+                    <label class="form-label fw-semibold">Home Address</label>
+                    <input
+                      type="text"
+                      class="form-control"
+                      id="homeAddress"
+                      placeholder="48 Mills Street DALYSTON VIC 3992"
+                    />
+                    <div class="form-text">
+                      Leave blank to use same as postal address
+                    </div>
+                  </div>
+
+                  <div
+                    id="bookingError"
+                    class="alert alert-danger d-none"
+                  ></div>
+                  <div id="bookingInfo" class="alert alert-info d-none"></div>
+
+                  <button
+                    type="submit"
+                    class="btn btn-danger w-100 py-2 fw-semibold"
+                  >
+                    <i class="bi bi-calendar-check me-2"></i>Confirm Booking
+                  </button>
+                </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bg-dark text-white py-4 mt-5">
+      <div class="container text-center">
+        <p class="mb-0 text-muted">
+          &copy; 2024 AirBnB Clone &mdash; Built with MongoDB sample_airbnb
+          dataset
+        </p>
+      </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="bookings.js"></script>
+  </body>
+</html>

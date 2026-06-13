@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Booking Confirmed - AirBnB</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link href="style.css" rel="stylesheet" />
+  </head>
+  <body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-danger">
+      <div class="container">
+        <a class="navbar-brand fw-bold" href="index.html">
+          <i class="bi bi-house-heart-fill me-2"></i>AirBnB
+        </a>
+      </div>
+    </nav>
+
+    <div class="container py-5">
+      <div class="row justify-content-center">
+        <div class="col-lg-6">
+          <div class="card shadow border-0 text-center">
+            <div class="card-body p-5">
+              <div class="mb-4">
+                <i
+                  class="bi bi-check-circle-fill text-success"
+                  style="font-size: 4rem"
+                ></i>
+              </div>
+              <h2 class="fw-bold mb-1">Booking Confirmed!</h2>
+              <p class="text-muted mb-1">
+                Your reservation has been saved to the database.
+              </p>
+              <div id="clientBadge" class="mb-4"></div>
+
+              <div
+                id="confirmationDetails"
+                class="text-start p-4 bg-light rounded mb-4"
+              ></div>
+
+              <a href="index.html" class="btn btn-danger w-100">
+                <i class="bi bi-search me-2"></i>Search More Properties
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="bg-dark text-white py-4 mt-5">
+      <div class="container text-center">
+        <p class="mb-0 text-muted">&copy; 2024 AirBnB Clone</p>
+      </div>
+    </footer>
+
+    <script>
+      function formatDate(iso) {
+        if (!iso) return "";
+        const d = new Date(iso);
+        return isNaN(d)
+          ? iso
+          : d.toLocaleDateString("en-US", {
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            });
+      }
+
+      const p = new URLSearchParams(window.location.search);
+      const el = document.getElementById("confirmationDetails");
+      const badge = document.getElementById("clientBadge");
+
+      if (p.get("is_new_client") === "1") {
+        badge.innerHTML =
+          '<span class="badge bg-success"><i class="bi bi-person-plus-fill me-1"></i>New client profile created</span>';
+      } else {
+        badge.innerHTML =
+          '<span class="badge bg-info text-dark"><i class="bi bi-person-check-fill me-1"></i>Existing client record updated</span>';
+      }
+
+      if (p.get("booking_id")) {
+        el.innerHTML = `
+          <table class="table table-sm table-borderless mb-0">
+            <tbody>
+              <tr><th width="42%" class="text-muted fw-normal">Booking ID</th>
+                  <td><code>${p.get("booking_id")}</code></td></tr>
+              <tr><th class="text-muted fw-normal">Client ID</th>
+                  <td><code>${p.get("client_id") || ""}</code></td></tr>
+              <tr><th class="text-muted fw-normal">Property</th>
+                  <td class="fw-semibold">${p.get("listing_name") || ""}</td></tr>
+              <tr><th class="text-muted fw-normal">Guest</th>
+                  <td>${p.get("client_name") || ""}</td></tr>
+              <tr><th class="text-muted fw-normal">Email</th>
+                  <td>${p.get("email_address") || ""}</td></tr>
+              <tr><td colspan="2"><hr class="my-2"></td></tr>
+              <tr><th class="text-muted fw-normal">Arrival</th>
+                  <td>${formatDate(p.get("arrival"))}</td></tr>
+              <tr><th class="text-muted fw-normal">Departure</th>
+                  <td>${formatDate(p.get("departure"))}</td></tr>
+              <tr><th class="text-muted fw-normal">Nights</th>
+                  <td>${p.get("nights") || ""}</td></tr>
+              <tr><th class="text-muted fw-normal">Guests</th>
+                  <td>${p.get("guests") || ""}</td></tr>
+              <tr><td colspan="2"><hr class="my-2"></td></tr>
+              <tr><th class="text-muted fw-normal">Total</th>
+                  <td>$${parseFloat(p.get("total") || 0).toFixed(2)}</td></tr>
+              <tr><th class="text-muted fw-normal">Deposit Paid</th>
+                  <td class="text-success">$${parseFloat(p.get("deposit") || 0).toFixed(2)}</td></tr>
+              <tr><th class="text-muted fw-normal">Balance Due</th>
+                  <td class="fw-bold text-danger">$${parseFloat(p.get("balance") || 0).toFixed(2)}</td></tr>
+              <tr><th class="text-muted fw-normal">Balance Due Date</th>
+                  <td>${formatDate(p.get("balance_due_date"))}</td></tr>
+            </tbody>
+          </table>`;
+      } else {
+        el.innerHTML =
+          '<p class="text-muted">No booking details available.</p>';
+      }
+    </script>
+  </body>
+</html>
