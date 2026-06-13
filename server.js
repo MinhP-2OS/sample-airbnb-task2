@@ -57,6 +57,29 @@ function mapListing(l) {
   };
 }
 
+// Returns set of listingIDs that are unavailable between arrivalDate and departureDate.
+// Clash rule (half-open intervals, date-only):
+//   existing.arrivalDate < newDeparture  AND  existing.departureDate > newArrival
+// This means: checkout on day X and check-in on day X do NOT clash (as per spec).
+async function getUnavailableListingIds(
+  arrivalDate,
+  departureDate,
+  excludeBookingId = null,
+) {
+  const matchStage = {
+    arrivalDate: { $lt: departureDate },
+    departureDate: { $gt: arrivalDate },
+  };
+  if (excludeBookingId) matchStage._id = { $ne: excludeBookingId };
+
+  const booked = await db
+    .collection("bookings")
+    .find(matchStage, { projection: { listingID: 1 } })
+    .toArray();
+
+  return new Set(booked.map((b) => b.listingID));
+}
+
 // GET /api/property-types
 app.get("/api/property-types", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database not connected" });
@@ -70,18 +93,29 @@ app.get("/api/property-types", async (req, res) => {
   }
 });
 
-// GET /api/listings — search/filter with pagination
-// Query params: market, property_type, bedrooms, page (default 1), limit (default 20)
+// GET /api/listings
+// Query params: market (required for search), start_date, end_date,
+//               property_type, bedrooms, page (default 1)
+// If start_date+end_date provided: filters out unavailable listings.
+// If no search params at all: returns 20 random listings (homepage featured).
 app.get("/api/listings", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database not connected" });
   try {
-    const { market, property_type, bedrooms } = req.query;
+    const { market, property_type, bedrooms, start_date, end_date } = req.query;
     const page = Math.max(1, parseInt(req.query.page, 10) || 1);
     const limit = 20;
     const skip = (page - 1) * limit;
 
-    // No filters → random sample for homepage (no pagination needed)
-    if (!market && !property_type && !bedrooms) {
+    const isSearch = !!(
+      market ||
+      property_type ||
+      bedrooms ||
+      start_date ||
+      end_date
+    );
+
+    // No filters → random featured listings for homepage
+    if (!isSearch) {
       const listings = await db
         .collection("listingsAndReviews")
         .aggregate([
@@ -110,7 +144,31 @@ app.get("/api/listings", async (req, res) => {
       });
     }
 
-    // Build filter query
+    // Parse and validate dates if provided
+    let arrivalDate, departureDate;
+    if (start_date && end_date) {
+      arrivalDate = new Date(start_date);
+      departureDate = new Date(end_date);
+      if (isNaN(arrivalDate) || isNaN(departureDate)) {
+        return res.status(400).json({ error: "Invalid date format" });
+      }
+      if (departureDate <= arrivalDate) {
+        return res
+          .status(400)
+          .json({ error: "End date must be after start date" });
+      }
+    }
+
+    // Find unavailable listing IDs for the requested dates
+    let unavailableIds = new Set();
+    if (arrivalDate && departureDate) {
+      unavailableIds = await getUnavailableListingIds(
+        arrivalDate,
+        departureDate,
+      );
+    }
+
+    // Build listing filter query
     const query = {};
     if (market) {
       query["address.market"] = { $regex: new RegExp(market.trim(), "i") };
@@ -139,6 +197,13 @@ app.get("/api/listings", async (req, res) => {
       "images.picture_url": 1,
     };
 
+    // Fetch all matching listings then filter unavailable ones
+    // (MongoDB $nin on a large set can be slow; fetching & filtering in app is simpler here)
+    if (unavailableIds.size > 0) {
+      // Exclude unavailable IDs via $nin
+      query["_id"] = { $nin: Array.from(unavailableIds) };
+    }
+
     const [listings, total] = await Promise.all([
       db
         .collection("listingsAndReviews")
@@ -162,12 +227,11 @@ app.get("/api/listings", async (req, res) => {
   }
 });
 
-// GET /api/listing/:id — single listing detail + bookings
+// GET /api/listing/:id — detail + existing bookings
 app.get("/api/listing/:id", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database not connected" });
   try {
     const id = req.params.id;
-
     const listing = await db
       .collection("listingsAndReviews")
       .findOne({ _id: id });
@@ -203,7 +267,41 @@ app.get("/api/listing/:id", async (req, res) => {
   }
 });
 
-// POST /api/bookings — upsert client, then create booking
+// GET /api/availability — check if a specific listing is available for given dates
+// Query: listing_id, start_date, end_date
+app.get("/api/availability", async (req, res) => {
+  if (!db) return res.status(503).json({ error: "Database not connected" });
+  try {
+    const { listing_id, start_date, end_date } = req.query;
+    if (!listing_id || !start_date || !end_date) {
+      return res
+        .status(400)
+        .json({ error: "listing_id, start_date and end_date are required" });
+    }
+    const arrivalDate = new Date(start_date);
+    const departureDate = new Date(end_date);
+    if (isNaN(arrivalDate) || isNaN(departureDate)) {
+      return res.status(400).json({ error: "Invalid dates" });
+    }
+    if (departureDate <= arrivalDate) {
+      return res
+        .status(400)
+        .json({ error: "End date must be after start date" });
+    }
+
+    const clash = await db.collection("bookings").findOne({
+      listingID: listing_id,
+      arrivalDate: { $lt: departureDate },
+      departureDate: { $gt: arrivalDate },
+    });
+
+    res.json({ available: !clash, clashing_booking: clash ? clash._id : null });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/bookings — upsert client, check availability, then create booking
 app.post("/api/bookings", async (req, res) => {
   if (!db) return res.status(503).json({ error: "Database not connected" });
   try {
@@ -221,7 +319,6 @@ app.post("/api/bookings", async (req, res) => {
       deposit_paid,
     } = req.body;
 
-    // Validate required fields
     if (
       !listing_id ||
       !client_name ||
@@ -244,13 +341,28 @@ app.post("/api/bookings", async (req, res) => {
       return res.status(400).json({ error: "Departure must be after arrival" });
     }
 
-    const nights = Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
-
     // Verify listing exists
     const listing = await db
       .collection("listingsAndReviews")
       .findOne({ _id: listing_id });
     if (!listing) return res.status(404).json({ error: "Listing not found" });
+
+    // ── Availability check ──────────────────────────────────────────────────
+    const clash = await db.collection("bookings").findOne({
+      listingID: listing_id,
+      arrivalDate: { $lt: departure },
+      departureDate: { $gt: arrival },
+    });
+    if (clash) {
+      return res.status(409).json({
+        error:
+          "This property is not available for the selected dates. It is already booked.",
+        clashing_booking_id: clash._id,
+      });
+    }
+    // ────────────────────────────────────────────────────────────────────────
+
+    const nights = Math.ceil((departure - arrival) / (1000 * 60 * 60 * 24));
 
     // Upsert registeredClient by email
     const clientsCol = db.collection("registeredClients");
@@ -263,7 +375,6 @@ app.post("/api/bookings", async (req, res) => {
 
     if (existingClient) {
       clientID = existingClient._id;
-      // Update fields that may have changed
       await clientsCol.updateOne(
         { _id: clientID },
         {
@@ -291,7 +402,6 @@ app.post("/api/bookings", async (req, res) => {
       });
     }
 
-    // Calculate financials
     const price = toPrice(listing.price);
     const deposit = parseFloat(deposit_paid) || 0;
     const total = nights * price;

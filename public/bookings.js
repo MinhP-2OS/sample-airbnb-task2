@@ -1,7 +1,10 @@
 const API_BASE = "http://127.0.0.1:5000";
 
-const params = new URLSearchParams(window.location.search);
-const listingId = params.get("listing_id");
+const urlParams = new URLSearchParams(window.location.search);
+const listingId = urlParams.get("listing_id");
+// Dates may be pre-filled from the search page
+const prefilledStart = urlParams.get("start_date") || "";
+const prefilledEnd = urlParams.get("end_date") || "";
 
 function escapeHtml(str) {
   if (!str) return "";
@@ -17,7 +20,7 @@ function formatDate(val) {
   const d = new Date(val);
   return isNaN(d)
     ? val
-    : d.toLocaleDateString("en-US", {
+    : d.toLocaleDateString("en-AU", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -144,26 +147,79 @@ function populateDetails(listing) {
     });
   }
 
-  // Set minimum dates to today
+  // Set date constraints
   const today = new Date().toISOString().split("T")[0];
-  document.getElementById("arrivalDate").min = today;
-  document.getElementById("departureDate").min = today;
+  const arrEl = document.getElementById("arrivalDate");
+  const depEl = document.getElementById("departureDate");
 
-  // Wire up live price summary
+  arrEl.min = today;
+  depEl.min = today;
+
+  // Pre-fill from search if available
+  if (prefilledStart) {
+    arrEl.value = prefilledStart;
+    depEl.min = prefilledStart;
+  }
+  if (prefilledEnd) {
+    depEl.value = prefilledEnd;
+  }
+
+  // If dates were pre-filled, show availability status immediately
+  if (prefilledStart && prefilledEnd) {
+    checkAndShowAvailability(prefilledStart, prefilledEnd);
+    updatePriceSummary();
+  }
+
   ["arrivalDate", "departureDate"].forEach((id) =>
-    document.getElementById(id).addEventListener("change", updatePriceSummary),
+    document.getElementById(id).addEventListener("change", () => {
+      const a = arrEl.value;
+      const d = depEl.value;
+      depEl.min = a || today;
+      if (d && a && d <= a) depEl.value = "";
+      if (arrEl.value && depEl.value) {
+        checkAndShowAvailability(arrEl.value, depEl.value);
+      }
+      updatePriceSummary();
+    }),
   );
   document
     .getElementById("depositPaid")
     .addEventListener("input", updatePriceSummary);
 
-  // Auto-fill home address from postal if blank
   document.getElementById("postalAddress").addEventListener("blur", () => {
     const home = document.getElementById("homeAddress");
     if (!home.value.trim()) {
       home.value = document.getElementById("postalAddress").value;
     }
   });
+}
+
+// Check availability via API and show a status badge below the dates
+async function checkAndShowAvailability(start, end) {
+  const badge = document.getElementById("availabilityBadge");
+  if (!badge) return;
+  badge.innerHTML =
+    '<span class="badge bg-secondary"><span class="spinner-border spinner-border-sm me-1"></span>Checking availability…</span>';
+
+  try {
+    const qs = new URLSearchParams({
+      listing_id: listingId,
+      start_date: start,
+      end_date: end,
+    });
+    const res = await fetch(`${API_BASE}/api/availability?${qs}`);
+    const data = await res.json();
+
+    if (data.available) {
+      badge.innerHTML =
+        '<span class="badge bg-success"><i class="bi bi-check-circle-fill me-1"></i>Available for selected dates</span>';
+    } else {
+      badge.innerHTML =
+        '<span class="badge bg-danger"><i class="bi bi-x-circle-fill me-1"></i>Not available — already booked for these dates</span>';
+    }
+  } catch {
+    badge.innerHTML = "";
+  }
 }
 
 function updatePriceSummary() {
@@ -204,16 +260,13 @@ document.getElementById("bookingForm").addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const errorDiv = document.getElementById("bookingError");
-  const infoDiv = document.getElementById("bookingInfo");
   errorDiv.classList.add("d-none");
-  infoDiv.classList.add("d-none");
 
   const arrival_date = document.getElementById("arrivalDate").value;
   const departure_date = document.getElementById("departureDate").value;
   const client_name = document.getElementById("clientName").value.trim();
   const email_address = document.getElementById("emailAddress").value.trim();
 
-  // Client-side validation
   if (!client_name) {
     errorDiv.textContent = "Please enter the guest's full name.";
     errorDiv.classList.remove("d-none");
@@ -244,7 +297,7 @@ document.getElementById("bookingForm").addEventListener("submit", async (e) => {
   const submitBtn = e.target.querySelector('[type="submit"]');
   submitBtn.disabled = true;
   submitBtn.innerHTML =
-    '<span class="spinner-border spinner-border-sm me-2"></span>Confirming...';
+    '<span class="spinner-border spinner-border-sm me-2"></span>Confirming…';
 
   try {
     const payload = {
